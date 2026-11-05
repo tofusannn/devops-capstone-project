@@ -205,3 +205,48 @@ class TestAccountService(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get_json(), [])
+    def test_update_an_account(self):
+        """It should Update an existing Account and persist changes"""
+        account = self._create_accounts(1)[0]
+        updated_data = account.serialize()
+        updated_data["name"] = "Updated Customer Name"
+        updated_data["email"] = "updated@example.com"
+        updated_data["address"] = "123 Updated Street"
+
+        response = self.client.put(
+            f"{BASE_URL}/{account.id}", json=updated_data
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get_json(), updated_data)
+
+        read_response = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(read_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(read_response.get_json(), updated_data)
+
+    def test_update_account_not_found(self):
+        """It should return 404 when the Account does not exist"""
+        account_data = AccountFactory().serialize()
+        response = self.client.put(f"{BASE_URL}/0", json=account_data)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_account_invalid_data(self):
+        """It should reject updates with missing required fields"""
+        account = self._create_accounts(1)[0]
+        response = self.client.put(
+            f"{BASE_URL}/{account.id}", json={"name": "Incomplete"}
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_account_unsupported_media_type(self):
+        """It should reject updates without JSON content type"""
+        account = self._create_accounts(1)[0]
+        response = self.client.put(
+            f"{BASE_URL}/{account.id}",
+            data="not json",
+            content_type="text/plain"
+        )
+        self.assertEqual(
+            response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+        )
+
