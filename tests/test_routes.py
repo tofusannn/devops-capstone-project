@@ -250,3 +250,25 @@ class TestAccountService(TestCase):
             response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
         )
 
+def test_delete_an_account(self):
+        """It should Delete an existing Account"""
+        account = self._create_accounts(1)[0]
+
+        response = self.client.delete(f"{BASE_URL}/{account.id}")
+
+        self.assertEqual(
+            response.status_code, status.HTTP_204_NO_CONTENT
+        )
+        self.assertEqual(response.data, b"")
+
+        read_response = self.client.get(f"{BASE_URL}/{account.id}")
+        self.assertEqual(
+            read_response.status_code, status.HTTP_404_NOT_FOUND
+        )
+
+    def test_delete_account_not_found(self):
+        """It should return 404 when the Account does not exist"""
+        response = self.client.delete(f"{BASE_URL}/0")
+        self.assertEqual(
+            response.status_code, status.HTTP_404_NOT_FOUND
+        )
