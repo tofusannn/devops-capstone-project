@@ -124,3 +124,64 @@ class TestAccountService(TestCase):
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 
     # ADD YOUR TEST CASES HERE ...
+
+    
+    def test_read_an_account(self):
+        """It should Read a single Account"""
+
+        # 1. Create test account
+        account = AccountFactory()
+
+        # 2. Send POST request to create an account
+        response = self.client.post(
+            BASE_URL,
+            json=account.serialize(),
+            content_type="application/json"
+        )
+
+        # 3. Check that the account was created
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED
+        )
+
+        # 4. Get the newly created account data and ID
+        new_account = response.get_json()
+        account_id = new_account["id"]
+
+        # 5. Send GET request using the created ID
+        response = self.client.get(
+            f"{BASE_URL}/{account_id}"
+        )
+
+        # 6. Check HTTP status code
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK
+        )
+
+        # 7. Verify the returned account data
+        data = response.get_json()
+        self.assertEqual(data, new_account)
+
+
+    def test_account_not_found(self):
+        """It should return 404 when Account is not found"""
+
+        # Send GET request with nonexistent account ID
+        response = self.client.get(f"{BASE_URL}/0")
+
+        # Verify HTTP 404 Not Found
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+
+    def test_method_not_allowed(self):
+        """It should return 405 for unsupported HTTP method"""
+        response = self.client.put("/health")
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED
+        )
