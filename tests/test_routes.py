@@ -186,6 +186,25 @@ class TestAccountService(TestCase):
             status.HTTP_405_METHOD_NOT_ALLOWED
         )
 
+    def test_list_all_accounts(self):
+        """It should List all Accounts"""
+        accounts = self._create_accounts(3)
+
+        response = self.client.get(BASE_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), len(accounts))
+        for account in accounts:
+            self.assertIn(account.serialize(), data)
+
+    def test_list_accounts_empty(self):
+        """It should return an empty list when no Accounts exist"""
+        response = self.client.get(BASE_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get_json(), [])
     def test_update_an_account(self):
         """It should Update an existing Account and persist changes"""
         account = self._create_accounts(1)[0]
@@ -230,3 +249,4 @@ class TestAccountService(TestCase):
         self.assertEqual(
             response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
         )
+
