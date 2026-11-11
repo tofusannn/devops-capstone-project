@@ -4,14 +4,36 @@ Package for the application models and service routes
 This module creates and configures the Flask app and sets up the logging
 and SQL database
 """
+import os
 import sys
 from flask import Flask
+from flask_cors import CORS
+from flask_talisman import Talisman
 from service import config
 from service.common import log_handlers
 
 # Create Flask application
 app = Flask(__name__)
 app.config.from_object(config)
+
+# Keep local development and automated test traffic on HTTP. When deployed behind
+# an HTTPS ingress, set FORCE_HTTPS=true to enable redirects and HSTS.
+Talisman(
+    app,
+    force_https=os.getenv("FORCE_HTTPS", "false").lower() == "true",
+    content_security_policy={
+        "default-src": "'self'",
+        "object-src": "'none'",
+        "frame-ancestors": "'none'",
+    },
+    frame_options="DENY",
+    referrer_policy="no-referrer",
+)
+
+# Set CORS_ORIGINS to a comma-separated list of trusted browser origins in
+# production. Wildcard default is intended for the training lab's public API.
+cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+CORS(app, resources={r"/accounts.*": {"origins": cors_origins}})
 
 # Import the routes After the Flask app is created
 # pylint: disable=wrong-import-position, cyclic-import, wrong-import-order
