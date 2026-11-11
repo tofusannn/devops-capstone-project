@@ -43,3 +43,15 @@ These are planning dates in the repository only, NOT actual GitHub Projects iter
 - `planning-kanban-done.png`: 5 Sprint backlog and 2 Icebox, including estimates and Sprint 1 assignment.
 
 **Note:** This file defines the intended plan and does not itself configure Project Board fields, labels' colors, or iterations.
+
+## Sprint 2 and 3 implementation follow-up
+
+Sprint 2 user stories: GitHub Actions continuous integration and security
+headers/CORS. Sprint 3 user stories: containerization (#6), Kubernetes
+deployment (#7), and Tekton continuous delivery. Track these issues and
+iterations on the actual GitHub Project board; Markdown alone does not set
+board status or iteration. Capture required board screenshots from GitHub.
+
+The repository includes an evidence capture script for REST API operations,
+but all screenshots, successful workflow logs, image listings, and Kubernetes
+pipeline run output must come from actual runs.

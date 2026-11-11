@@ -1,0 +1,15 @@
+.git
+.github
+.devcontainer
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+tests/
+evidence/
+*.log
+*.txt
+!requirements.txt
