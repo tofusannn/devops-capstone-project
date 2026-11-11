@@ -250,7 +250,7 @@ class TestAccountService(TestCase):
             response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
         )
 
-def test_delete_an_account(self):
+    def test_delete_an_account(self):
         """It should Delete an existing Account"""
         account = self._create_accounts(1)[0]
 
