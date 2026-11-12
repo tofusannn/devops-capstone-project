@@ -18,6 +18,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # The app initializes tables on import; use one local worker to avoid a concurrent CREATE TABLE race.
+    command: ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "service:app"]
     ports:
       - "127.0.0.1:8080:8080"
     environment:
