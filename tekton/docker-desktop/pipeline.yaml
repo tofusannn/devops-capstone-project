@@ -1,0 +1,130 @@
+# Tekton v1.18 Docker Desktop training pipeline.
+# GHCR write/pull credentials are provided by a Kubernetes Secret, never in Git.
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: capstone-clone
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: git-clone
+      image: alpine/git:latest
+      script: |
+        #!/bin/sh
+        set -eu
+        git clone --depth 1 --branch main https://github.com/tofusannn/devops-capstone-project.git "$(workspaces.source.path)/repo"
+        cd "$(workspaces.source.path)/repo"
+        git rev-parse --short HEAD
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: capstone-kaniko-build
+spec:
+  params:
+    - name: image
+      type: string
+  workspaces:
+    - name: source
+    - name: dockerconfig
+      mountPath: /kaniko/.docker
+  steps:
+    - name: build-and-push
+      image: gcr.io/kaniko-project/executor:v1.24.0
+      command: ["/kaniko/executor"]
+      args:
+        - "--dockerfile=$(workspaces.source.path)/repo/Dockerfile"
+        - "--context=dir://$(workspaces.source.path)/repo"
+        - "--destination=$(params.image)"
+        - "--cache=false"
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: capstone-deploy
+spec:
+  params:
+    - name: image
+      type: string
+  steps:
+    - name: deploy-and-verify
+      image: alpine/kubectl:1.36.1
+      script: |
+        #!/bin/sh
+        set -eu
+        kubectl -n default get deployment accounts
+        # Image is in GHCR (possibly private), so configure a pull secret.
+        # Replace the lab deployment's Never policy with Always.
+        kubectl -n default patch deployment accounts --type=json -p='[{"op":"add","path":"/spec/template/spec/imagePullSecrets","value":[{"name":"capstone-ghcr-auth"}]},{"op":"add","path":"/spec/template/spec/containers/0/imagePullPolicy","value":"Always"}]'
+        kubectl -n default set image deployment/accounts accounts="$(params.image)"
+        kubectl -n default rollout status deployment/accounts --timeout=300s
+        kubectl -n default get deployments,pods,replicasets,services -o wide
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: capstone-cd-local
+spec:
+  params:
+    - name: image
+      type: string
+      default: ghcr.io/tofusannn/devops-capstone-project:tekton
+  workspaces:
+    - name: source
+    - name: dockerconfig
+  tasks:
+    - name: clone
+      taskRef:
+        name: capstone-clone
+      workspaces:
+        - name: source
+          workspace: source
+    - name: build
+      runAfter: [clone]
+      taskRef:
+        name: capstone-kaniko-build
+      params:
+        - name: image
+          value: "$(params.image)"
+      workspaces:
+        - name: source
+          workspace: source
+        - name: dockerconfig
+          workspace: dockerconfig
+    - name: deploy
+      runAfter: [build]
+      taskRef:
+        name: capstone-deploy
+      params:
+        - name: image
+          value: "$(params.image)"
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: capstone-cd-local-
+spec:
+  pipelineRef:
+    name: capstone-cd-local
+  taskRunTemplate:
+    serviceAccountName: capstone-tekton
+  params:
+    - name: image
+      value: ghcr.io/tofusannn/devops-capstone-project:tekton
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          storageClassName: hostpath
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+    - name: dockerconfig
+      secret:
+        secretName: capstone-ghcr-auth
+        items:
+          - key: .dockerconfigjson
+            path: config.json
