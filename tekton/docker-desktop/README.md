@@ -19,35 +19,20 @@ kubectl auth can-i patch deployments --as=system:serviceaccount:default:capstone
 
 ## Step 2: Create GHCR credentials safely
 
-In GitHub Settings > Developer settings > Personal access tokens > Tokens (classic), create a **temporary** PAT for GHCR with `write:packages` and `read:packages`. Do not paste it in chat or commit it. Enter it interactively at the prompt below.
+In GitHub Settings > Developer settings > Personal access tokens > Tokens (classic), create a **short-lived** PAT with `write:packages` (which includes package read access). Prefer the scoped link <https://github.com/settings/tokens/new?scopes=write:packages> to avoid inadvertently granting broad `repo` access. Do not share or commit the token.
+
+Run this safe helper; it checks the Kubernetes context and prompts for the token **without echoing it**, then sends the Docker config Secret directly via `kubectl` stdin with no token in shell arguments or a local file:
 
 ```bash
-python3 - <<'PY' | kubectl apply -f -
-import base64
-import getpass
-import json
-
-username = "tofusannn"
-token = getpass.getpass("Temporary GHCR PAT (hidden input): ").strip()
-if not token:
-    raise SystemExit("No token provided")
-auth = base64.b64encode((username + ":" + token).encode()).decode()
-docker_config = json.dumps({"auths": {"ghcr.io": {"auth": auth}}}).encode()
-secret = {
-    "apiVersion": "v1",
-    "kind": "Secret",
-    "metadata": {"name": "capstone-ghcr-auth", "namespace": "default"},
-    "type": "kubernetes.io/dockerconfigjson",
-    "data": {".dockerconfigjson": base64.b64encode(docker_config).decode()},
-}
-print(json.dumps(secret))
-PY
-
-# Do not print or decode the Secret.
-kubectl get secret capstone-ghcr-auth
+cd ~/Downloads/devops-capstone-project
+git pull --ff-only
+python3 bin/setup-ghcr-secret.py
+kubectl -n default get secret capstone-ghcr-auth
 ```
 
-The package is uploaded to `ghcr.io/tofusannn/devops-capstone-project:tekton`. Newly created packages may be private; the Pipeline configures `imagePullSecrets` to allow the Kubernetes deployment to pull it. Revoke the temporary PAT and delete the Secret after finishing the lab.
+This creates a Secret of type `kubernetes.io/dockerconfigjson` with the key `.dockerconfigjson`, shared by Kaniko's registry authentication workspace and the deployment's image-pull credentials.
+
+The package is uploaded to `ghcr.io/tofusannn/devops-capstone-project:tekton`. Newly created packages may be private; the Pipeline configures `imagePullSecrets` to allow Kubernetes to pull the image. Revoke the temporary PAT and delete the Secret after completing the lab.
 
 ## Step 3: Install the local Tasks and Pipeline, run it
 
