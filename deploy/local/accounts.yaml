@@ -1,0 +1,78 @@
+# Local Docker Desktop Kubernetes lab only.
+# Uses the image from docker compose build and a single Gunicorn worker.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts
+  labels:
+    app: accounts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accounts
+  template:
+    metadata:
+      labels:
+        app: accounts
+    spec:
+      containers:
+        - name: accounts
+          image: devops-capstone-project-api:latest
+          imagePullPolicy: Never
+          command: ["gunicorn"]
+          args: ["--bind", "0.0.0.0:8080", "--workers", "1", "service:app"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DATABASE_HOST
+              value: postgresql
+            - name: DATABASE_USER
+              value: postgres
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: capstone-db-auth
+                  key: password
+            - name: DATABASE_NAME
+              value: postgres
+            - name: FORCE_HTTPS
+              value: "false"
+            - name: CORS_ORIGINS
+              value: "*"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts
+  labels:
+    app: accounts
+spec:
+  selector:
+    app: accounts
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
