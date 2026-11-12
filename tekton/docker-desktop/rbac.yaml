@@ -1,0 +1,33 @@
+# Local Docker Desktop lab: namespace-scoped deployment permissions.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: capstone-tekton
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: capstone-tekton-deployer
+  namespace: default
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: capstone-tekton-deployer
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: capstone-tekton
+    namespace: default
+roleRef:
+  kind: Role
+  name: capstone-tekton-deployer
+  apiGroup: rbac.authorization.k8s.io
