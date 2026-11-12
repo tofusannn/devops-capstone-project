@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: capstone-cd-local-
+spec:
+  pipelineRef:
+    name: capstone-cd-local
+  taskRunTemplate:
+    serviceAccountName: capstone-tekton
+  params:
+    - name: image
+      value: ghcr.io/tofusannn/devops-capstone-project:tekton
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          storageClassName: hostpath
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+    - name: dockerconfig
+      secret:
+        secretName: capstone-ghcr-auth
+        items:
+          - key: .dockerconfigjson
+            path: config.json
