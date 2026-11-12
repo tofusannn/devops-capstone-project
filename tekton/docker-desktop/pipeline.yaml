@@ -51,14 +51,21 @@ spec:
   steps:
     - name: deploy-and-verify
       image: alpine/kubectl:1.36.1
+      env:
+        - name: IMAGE_TO_DEPLOY
+          value: "$(params.image)"
       script: |
         #!/bin/sh
         set -eu
         kubectl -n default get deployment accounts
-        # Image is in GHCR (possibly private), so configure a pull secret.
-        # Replace the lab deployment's Never policy with Always.
-        kubectl -n default patch deployment accounts --type=json -p='[{"op":"add","path":"/spec/template/spec/imagePullSecrets","value":[{"name":"capstone-ghcr-auth"}]},{"op":"add","path":"/spec/template/spec/containers/0/imagePullPolicy","value":"Always"}]'
-        kubectl -n default set image deployment/accounts accounts="$(params.image)"
+        # Do not interpolate a Tekton param into shell source.
+        # Only OCI-safe image name characters are accepted for this lab.
+        case "$IMAGE_TO_DEPLOY" in
+          *[!a-zA-Z0-9._:/-]*|'') echo "Invalid image reference" >&2; exit 1 ;;
+        esac
+        # Apply registry credentials, image and pull policy in ONE rollout.
+        patch="$(printf '[{"op":"add","path":"/spec/template/spec/imagePullSecrets","value":[{"name":"capstone-ghcr-auth"}]},{"op":"replace","path":"/spec/template/spec/containers/0/imagePullPolicy","value":"Always"},{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"%s"}]' "$IMAGE_TO_DEPLOY")"
+        kubectl -n default patch deployment accounts --type=json -p="$patch"
         kubectl -n default rollout status deployment/accounts --timeout=300s
         kubectl -n default get deployments,pods,replicasets,services -o wide
 ---
